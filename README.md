@@ -57,15 +57,19 @@ https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNo
 2. Crear la base de datos y la tabla en phpMyAdmin o MySQL CLI:
 
 ```sql
-CREATE DATABASE tipocambio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+create database tipocambio
 
-USE tipocambio;
+USE tipocambio
 
-CREATE TABLE tipo_cambio (
-    fecha   DATE          NOT NULL PRIMARY KEY,
-    compra  DECIMAL(10,2) NOT NULL,
-    venta   DECIMAL(10,2) NOT NULL
-);
+CREATE TABLE tipo_cambio (                                                                                                                                                        
+      id          INT UNSIGNED    NOT NULL AUTO_INCREMENT,                                                                                                                          
+      fecha       DATE            NOT NULL,                                                                                                                                         
+      venta       DECIMAL(10, 2)  NOT NULL,                                                                                                                                         
+      compra      DECIMAL(10, 2)  NOT NULL,
+      created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_fecha (fecha)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 3. Habilitar la extensión `zip` de PHP en XAMPP:
