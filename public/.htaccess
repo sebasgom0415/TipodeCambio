@@ -1,0 +1,43 @@
+# ── Seguridad general ───────────────────────────────────────────────────────
+Options -Indexes -MultiViews
+
+# ── Headers de seguridad ────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always unset X-Powered-By
+    Header always unset Server
+</IfModule>
+
+# ── Bloquear bots maliciosos y herramientas de escaneo ──────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTP_USER_AGENT} (nikto|nmap|masscan|sqlmap|havij|acunetix|w3af|dirbuster|hydra|metasploit) [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} ^-?$ [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# ── Denegar acceso a archivos sensibles ─────────────────────────────────────
+<FilesMatch "\.(env|sql|log|bak|swp|git|ini|yml|yaml)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# ── PHP: ocultar errores al usuario en producción ───────────────────────────
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_reporting 32767
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_reporting 32767
+</IfModule>
+
+# ── Clickjacking adicional via meta (refuerzo) ──────────────────────────────
+# Ya cubierto por X-Frame-Options arriba

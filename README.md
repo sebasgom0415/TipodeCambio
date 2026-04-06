@@ -1,60 +1,40 @@
-# Tipo de Cambio — Dólar
+# Tipo de Cambio — Dólar BCCR
 
-Aplicación web en PHP que consulta el historial del tipo de cambio del dólar (compra/venta) desde la API oficial del Banco Central de Costa Rica (BCCR) y lo persiste en MySQL. Incluye una interfaz con gráfico de líneas, tarjetas resumen, tabla con historial desde el año 2000 y sincronización automática diaria al cargar la página.
+Aplicación web en PHP que consulta y persiste el historial del tipo de cambio del dólar (compra/venta) desde la API oficial del Banco Central de Costa Rica (BCCR). Incluye una interfaz pública con gráfico, estadísticas, comparación entre años y convertidor de colones a dólares; un panel de administración protegido para gestionar la sincronización de datos; y un sistema de suscripción por correo para recibir la tasa diaria.
+
+---
+
+## Características
+
+- **Vista pública** — tasas del día, gráfico de líneas, estadísticas, tabla con historial y filtro por fechas
+- **Comparar años** — gráfico superpuesto con promedios mensuales y estadísticas comparativas
+- **Convertidor ₡ / $** — modal flotante que usa las tasas del día para convertir en ambas direcciones
+- **Suscripción por correo** — doble opt-in, envío diario vía Gmail SMTP, link de cancelación en cada correo
+- **Panel de administración** — sincronización por año, gestión de suscriptores, envío manual de correos
+- **Sin dependencias externas en runtime** — todas las librerías JS/CSS se sirven localmente
+- **Seguridad** — headers HTTP, CSRF, rate limiting, protección de directorios, sesiones seguras
 
 ---
 
 ## Requisitos
 
 - XAMPP (Apache + MySQL + PHP 8.x)
-- Extensión `zip` de PHP habilitada (ver paso 3)
-- Cuenta registrada en el sitio de indicadores del BCCR (ver paso 1)
+- Cuenta registrada en el sitio de indicadores del BCCR (ver sección API)
+- Cuenta de Gmail con **App Password** habilitada para el envío de correos
 
 ---
 
-## Configuración de la API del BCCR
+## Instalación local (XAMPP)
 
-El BCCR cuenta con una nueva plataforma de indicadores económicos que expone un API REST con autenticación Bearer. Para utilizarla es necesario crear un usuario y obtener un token de acceso.
-
-### Paso 1 — Crear usuario en el sitio del BCCR
-
-1. Ingresar a: https://sdd.bccr.fi.cr/es/IndicadoresEconomicos/Inicio/
-2. Hacer clic en **"Iniciar sesión"** y registrar un nuevo usuario.
-3. Puede consultar la guía oficial de registro en:
-   https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Guia_de_uso_sitio_externo.pdf
-
-### Paso 2 — Obtener el token de acceso
-
-1. Una vez registrado e iniciada la sesión, ir a la sección **"Mi Perfil"**.
-2. Copiar el **token de acceso** (JWT) que aparece en esa sección.
-
-### Paso 3 — Configurar el token en el proyecto
-
-Abrir el archivo `config/config.php` y reemplazar el valor de `API_TOKEN` con el token obtenido:
-
-```php
-define('API_TOKEN', 'pegar_aqui_tu_token');
-```
-
-El endpoint utilizado es:
+### 1. Clonar el proyecto
 
 ```
-GET https://apim.bccr.fi.cr/SDDE/api/Bccr.GE.SDDE.Publico.Indicadores.API/cuadro/1/series
-    ?idioma=ES&fechaInicio=yyyy/mm/dd&fechaFin=yyyy/mm/dd
+htdocs/tipoCambio/
 ```
 
-Indicadores consultados: **317** (Compra) y **318** (Venta).
+### 2. Crear la base de datos
 
-Guía técnica completa del API:
-https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Estandar_API_SDDE.pdf
-
----
-
-## Instalación
-
-1. Clonar o copiar la carpeta del proyecto en `htdocs/tipoCambio`.
-
-2. Crear la base de datos y la tabla en phpMyAdmin o MySQL CLI:
+Ejecutar en phpMyAdmin o MySQL CLI:
 
 ```sql
 create database tipocambio
@@ -72,60 +52,164 @@ CREATE TABLE tipo_cambio (
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-3. Habilitar la extensión `zip` de PHP en XAMPP:
-   - Abrir `C:\xampp\php\php.ini`.
-   - Buscar la línea `;extension=zip` y quitarle el `;` para que quede `extension=zip`.
-   - Reiniciar Apache desde el panel de XAMPP.
+> La tabla `suscriptores` se crea automáticamente la primera vez que alguien intenta suscribirse.
 
-4. Configurar el token del BCCR en `config/config.php` (ver sección anterior).
+### 3. Configurar `config/config.php`
 
-5. Acceder desde el navegador: http://localhost/tipoCambio/public/
+```php
+// Base de datos
+define('DB_HOST', '127.0.0.1');
+define('DB_NAME', 'tipocambio');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+
+// API del BCCR
+define('API_TOKEN', 'tu_token_jwt_aqui');
+
+// Panel de administración
+define('ADMIN_KEY', 'contraseña_segura');
+
+// Correo (Gmail)
+define('MAIL_USER', 'tu.correo@gmail.com');
+define('MAIL_PASS', 'xxxx xxxx xxxx xxxx'); // App Password de Google
+
+// URL pública del sitio (sin barra al final)
+define('APP_URL', 'http://localhost/tipoCambio/public');
+
+// Clave para el cron job
+define('CRON_KEY', 'clave_secreta_cron');
+```
+
+### 4. Acceder al sitio
+
+```
+http://localhost/tipoCambio/public/
+```
+
+Panel de administración:
+```
+http://localhost/tipoCambio/public/?page=admin
+```
 
 ---
 
-## Uso
+## Instalación en Hostinger
 
-- Al cargar la página, la app **consulta automáticamente** el tipo de cambio del día actual en el BCCR, lo guarda en la base de datos y lo muestra en el encabezado. Si el BCCR no publica dato para ese día (fin de semana o feriado), se muestra el último valor disponible.
-- Usar el selector de año para ver el historial de cualquier año entre 2000 y el año actual.
-- Presionar **Sincronizar** para importar todos los registros de un año completo desde la API del BCCR y guardarlos en la base de datos.
+1. Subir todos los archivos al hosting.
+2. En el panel de Hostinger, establecer `public/` como **Document Root**.
+3. Crear la base de datos MySQL desde el panel y actualizar `config/config.php` con las credenciales del hosting.
+4. Cambiar `APP_URL` al dominio real:
+   ```php
+   define('APP_URL', 'https://tudominio.com');
+   ```
+5. Configurar el cron job diario (ver sección Cron Job).
+
+> **Importante:** No subas `config/config.php` a un repositorio público. Agrégalo al `.gitignore`.
 
 ---
 
-## Estructura
+## Cron job — envío diario de correos
+
+Para que el sistema envíe automáticamente el tipo de cambio cada mañana, crea un cron job en Hostinger que ejecute esta URL:
+
+```
+https://tudominio.com/index.php?action=cron_enviar&key=TU_CRON_KEY
+```
+
+Horario sugerido: `0 8 * * *` (todos los días a las 8:00 a.m.)
+
+La `CRON_KEY` debe coincidir exactamente con la definida en `config/config.php`.
+
+---
+
+## Configuración de la API del BCCR
+
+### Registrar usuario
+
+1. Ir a `https://sdd.bccr.fi.cr/es/IndicadoresEconomicos/Inicio/`
+2. Crear un usuario nuevo y acceder a **Mi Perfil**
+3. Copiar el token JWT y pegarlo en `config/config.php` como `API_TOKEN`
+
+**Endpoint utilizado:**
+```
+GET https://apim.bccr.fi.cr/SDDE/api/Bccr.GE.SDDE.Publico.Indicadores.API/cuadro/1/series
+    ?idioma=ES&fechaInicio=yyyy/mm/dd&fechaFin=yyyy/mm/dd
+Authorization: Bearer <token>
+```
+
+Indicadores: **317** (Compra) · **318** (Venta) · Datos desde: **1983-01-01**
+
+---
+
+## Configuración de Gmail (App Password)
+
+1. Activar la verificación en dos pasos en la cuenta de Google
+2. Ir a `Cuenta de Google → Seguridad → Contraseñas de aplicaciones`
+3. Crear una nueva contraseña para "Correo"
+4. Copiar los 16 caracteres y pegarlos en `config/config.php` como `MAIL_PASS`
+
+---
+
+## Estructura del proyecto
 
 ```
 tipoCambio/
 ├── app/
-│   ├── controllers/TipoCambioController.php
-│   ├── models/TipoCambioModel.php
-│   └── views/index.php
-├── config/config.php
+│   ├── controllers/
+│   │   └── TipoCambioController.php   # Lógica de rutas y acciones
+│   ├── models/
+│   │   ├── TipoCambioModel.php        # Datos de tipo de cambio
+│   │   └── SuscriptorModel.php        # Suscriptores de correo
+│   ├── services/
+│   │   └── EmailService.php           # Envío de correos via PHPMailer
+│   ├── lib/
+│   │   └── PHPMailer/                 # PHPMailer v6.9.1
+│   └── views/
+│       ├── index.php                  # Vista pública
+│       ├── admin.php                  # Panel de administración
+│       └── message.php               # Página de confirmación / baja
+├── config/
+│   └── config.php                     # Credenciales y constantes
 ├── core/
-│   ├── Controller.php
-│   └── Model.php
-└── public/
-    ├── .htaccess
-    └── index.php
+│   ├── Controller.php                 # Clase base (headers, CSRF, render)
+│   └── Model.php                      # Clase base (PDO, API fetch)
+├── public/
+│   ├── assets/
+│   │   ├── css/                       # Bootstrap, Bootstrap Icons, DataTables, Inter
+│   │   ├── js/                        # Bootstrap, jQuery, Chart.js, DataTables
+│   │   ├── fonts/                     # Inter (woff2), Bootstrap Icons
+│   │   └── i18n/                      # DataTables es-ES.json
+│   ├── .htaccess                      # Headers de seguridad, bloqueo de bots
+│   └── index.php                      # Router principal
+├── storage/                           # JSONs de respaldo (ignorar en producción)
+└── README.md
 ```
 
 ---
 
-## API utilizada
+## Seguridad implementada
 
-**Banco Central de Costa Rica — SDDE API**
-`https://apim.bccr.fi.cr/SDDE/api/Bccr.GE.SDDE.Publico.Indicadores.API/cuadro/1/series`
-
-Parámetros: `idioma` (ES), `fechaInicio` y `fechaFin` en formato `yyyy/mm/dd`.
-Autenticación: `Authorization: Bearer <token>`
-
-Datos históricos disponibles desde: **1983-01-01**
+| Medida | Descripción |
+|---|---|
+| Headers HTTP | `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy` |
+| CSRF | Token en el formulario de login del admin |
+| Rate limiting | 15 s entre sincronizaciones, 60 s entre consultas a la API, 30 s entre suscripciones |
+| Sesiones | `httponly`, `samesite=Strict`, `use_strict_mode`, regeneración de ID |
+| Directorios | `.htaccess` en `app/`, `core/`, `config/`, `storage/` deniega acceso directo |
+| Brute force | `sleep(1)` en contraseña incorrecta del admin |
+| Errores PHP | `display_errors Off` en producción |
 
 ---
 
 ## Stack
 
-- PHP 8 (sin frameworks)
-- MySQL / PDO
-- Bootstrap 5.3
-- Chart.js 4
-- jQuery 3.7
+| Categoría | Tecnología |
+|---|---|
+| Backend | PHP 8 sin frameworks, PDO |
+| Base de datos | MySQL |
+| Frontend | Bootstrap 5.3, Bootstrap Icons 1.11 |
+| Gráficos | Chart.js 4.4 |
+| Tablas | DataTables 2.0 |
+| JavaScript | jQuery 3.7 |
+| Tipografía | Inter (self-hosted) |
+| Email | PHPMailer 6.9 + Gmail SMTP |

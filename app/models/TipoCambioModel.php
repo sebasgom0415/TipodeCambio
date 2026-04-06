@@ -174,6 +174,37 @@ class TipoCambioModel extends Model
     }
 
     /**
+     * Devuelve el estado de sincronización de cada año (2000 - año actual).
+     */
+    public function getYearsStatus(): array
+    {
+        $currentYear = (int) date('Y');
+        $result = [];
+
+        for ($y = $currentYear; $y >= 2000; $y--) {
+            $desde = $y . '-01-01';
+            $hasta = ($y === $currentYear) ? date('Y-m-d') : $y . '-12-31';
+
+            $stmt = $this->getDB()->prepare(
+                'SELECT COUNT(*) AS total, MAX(fecha) AS ultima_fecha
+                 FROM tipo_cambio
+                 WHERE fecha BETWEEN :desde AND :hasta'
+            );
+            $stmt->execute([':desde' => $desde, ':hasta' => $hasta]);
+            $row = $stmt->fetch();
+
+            $result[] = [
+                'year'         => $y,
+                'total'        => (int) $row['total'],
+                'ultima_fecha' => $row['ultima_fecha'],
+                'sincronizado' => (int) $row['total'] > 0,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Indica si ya hay datos en la BD para el año dado.
      */
     public function hasData(int $year): bool

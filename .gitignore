@@ -1,0 +1,27 @@
+# ── Credenciales y configuración sensible ───────────────────────────────────
+config/config.php
+
+# ── Dependencias descargadas (no deben subirse al repo) ─────────────────────
+app/lib/
+public/assets/
+
+# ── Storage / archivos generados ────────────────────────────────────────────
+storage/*.json
+
+# ── Logs de PHP y Apache ────────────────────────────────────────────────────
+*.log
+error_log
+
+# ── IDEs y editores ─────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.claude/
+
+# ── Sistema operativo ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── PHP ─────────────────────────────────────────────────────────────────────
+*.cache
