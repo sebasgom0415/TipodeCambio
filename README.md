@@ -1,61 +1,127 @@
-  ---                                                                                                                                                                               
-  Tipo de Cambio — Dólar                                                                                                                                                            
-                                                                                                                                                                                    
-  Aplicación web en PHP que consulta el historial del tipo de cambio del dólar (compra/venta) desde la API oficial del Ministerio de Hacienda de Costa Rica y lo persiste en MySQL. 
-  Incluye una interfaz con gráfico de líneas, tarjetas resumen y tabla con historial del año en curso.                                                                            
+# Tipo de Cambio — Dólar
 
-  Requisitos
+Aplicación web en PHP que consulta el historial del tipo de cambio del dólar (compra/venta) desde la API oficial del Banco Central de Costa Rica (BCCR) y lo persiste en MySQL. Incluye una interfaz con gráfico de líneas, tarjetas resumen, tabla con historial desde el año 2000 y sincronización automática diaria al cargar la página.
 
-  - XAMPP (Apache + MySQL + PHP 8.x)
-  - mod_rewrite habilitado en Apache
+---
 
-  Instalación
+## Requisitos
 
-  1. Clonar o copiar la carpeta del proyecto en htdocs/tipoCambio.
-  2. Crear la base de datos y la tabla en phpMyAdmin (o MySQL CLI):
+- XAMPP (Apache + MySQL + PHP 8.x)
+- Extensión `zip` de PHP habilitada (ver paso 3)
+- Cuenta registrada en el sitio de indicadores del BCCR (ver paso 1)
 
-  CREATE DATABASE tipocambio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+---
 
-  USE tipocambio;
+## Configuración de la API del BCCR
 
-  CREATE TABLE tipo_cambio (
-      fecha   DATE          NOT NULL PRIMARY KEY,
-      compra  DECIMAL(10,2) NOT NULL,
-      venta   DECIMAL(10,2) NOT NULL
-  );
+El BCCR cuenta con una nueva plataforma de indicadores económicos que expone un API REST con autenticación Bearer. Para utilizarla es necesario crear un usuario y obtener un token de acceso.
 
-  3. Ajustar credenciales en config/config.php si es necesario (por defecto usa root sin contraseña o la tuya).
-  4. Acceder desde el navegador: http://localhost/tipoCambio/public/
+### Paso 1 — Crear usuario en el sitio del BCCR
 
-  Uso
+1. Ingresar a: https://sdd.bccr.fi.cr/es/IndicadoresEconomicos/Inicio/
+2. Hacer clic en **"Iniciar sesión"** y registrar un nuevo usuario.
+3. Puede consultar la guía oficial de registro en:
+   https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Guia_de_uso_sitio_externo.pdf
 
-  - Al cargar la página se muestran los datos ya guardados en la BD (si los hay).
-  - Presionar Sincronizar para consultar la API de Hacienda y guardar/actualizar los registros del año en curso (1 enero hasta hoy).
+### Paso 2 — Obtener el token de acceso
 
-  Estructura
+1. Una vez registrado e iniciada la sesión, ir a la sección **"Mi Perfil"**.
+2. Copiar el **token de acceso** (JWT) que aparece en esa sección.
 
-  tipoCambio/
-  ├── app/
-  │   ├── controllers/TipoCambioController.php
-  │   ├── models/TipoCambioModel.php
-  │   └── views/index.php
-  ├── config/config.php
-  ├── core/
-  │   ├── Controller.php
-  │   └── Model.php
-  └── public/
-      ├── .htaccess
-      └── index.php
+### Paso 3 — Configurar el token en el proyecto
 
-  API utilizada
+Abrir el archivo `config/config.php` y reemplazar el valor de `API_TOKEN` con el token obtenido:
 
-  https://api.hacienda.go.cr/indicadores/tc/dolar/historico
-  Parámetros: d (fecha inicio YYYY-MM-DD) y h (fecha fin YYYY-MM-DD).
+```php
+define('API_TOKEN', 'pegar_aqui_tu_token');
+```
 
-  Stack
+El endpoint utilizado es:
 
-  - PHP 8 (sin frameworks)
-  - MySQL / PDO
-  - Bootstrap 5.3
-  - Chart.js 4
-  - jQuery 3.7
+```
+GET https://apim.bccr.fi.cr/SDDE/api/Bccr.GE.SDDE.Publico.Indicadores.API/cuadro/1/series
+    ?idioma=ES&fechaInicio=yyyy/mm/dd&fechaFin=yyyy/mm/dd
+```
+
+Indicadores consultados: **317** (Compra) y **318** (Venta).
+
+Guía técnica completa del API:
+https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Estandar_API_SDDE.pdf
+
+---
+
+## Instalación
+
+1. Clonar o copiar la carpeta del proyecto en `htdocs/tipoCambio`.
+
+2. Crear la base de datos y la tabla en phpMyAdmin o MySQL CLI:
+
+```sql
+CREATE DATABASE tipocambio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE tipocambio;
+
+CREATE TABLE tipo_cambio (
+    fecha   DATE          NOT NULL PRIMARY KEY,
+    compra  DECIMAL(10,2) NOT NULL,
+    venta   DECIMAL(10,2) NOT NULL
+);
+```
+
+3. Habilitar la extensión `zip` de PHP en XAMPP:
+   - Abrir `C:\xampp\php\php.ini`.
+   - Buscar la línea `;extension=zip` y quitarle el `;` para que quede `extension=zip`.
+   - Reiniciar Apache desde el panel de XAMPP.
+
+4. Configurar el token del BCCR en `config/config.php` (ver sección anterior).
+
+5. Acceder desde el navegador: http://localhost/tipoCambio/public/
+
+---
+
+## Uso
+
+- Al cargar la página, la app **consulta automáticamente** el tipo de cambio del día actual en el BCCR, lo guarda en la base de datos y lo muestra en el encabezado. Si el BCCR no publica dato para ese día (fin de semana o feriado), se muestra el último valor disponible.
+- Usar el selector de año para ver el historial de cualquier año entre 2000 y el año actual.
+- Presionar **Sincronizar** para importar todos los registros de un año completo desde la API del BCCR y guardarlos en la base de datos.
+
+---
+
+## Estructura
+
+```
+tipoCambio/
+├── app/
+│   ├── controllers/TipoCambioController.php
+│   ├── models/TipoCambioModel.php
+│   └── views/index.php
+├── config/config.php
+├── core/
+│   ├── Controller.php
+│   └── Model.php
+└── public/
+    ├── .htaccess
+    └── index.php
+```
+
+---
+
+## API utilizada
+
+**Banco Central de Costa Rica — SDDE API**
+`https://apim.bccr.fi.cr/SDDE/api/Bccr.GE.SDDE.Publico.Indicadores.API/cuadro/1/series`
+
+Parámetros: `idioma` (ES), `fechaInicio` y `fechaFin` en formato `yyyy/mm/dd`.
+Autenticación: `Authorization: Bearer <token>`
+
+Datos históricos disponibles desde: **1983-01-01**
+
+---
+
+## Stack
+
+- PHP 8 (sin frameworks)
+- MySQL / PDO
+- Bootstrap 5.3
+- Chart.js 4
+- jQuery 3.7
