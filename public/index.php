@@ -15,6 +15,10 @@ switch ($action) {
         $controller->data();
         break;
 
+    case 'today':
+        $controller->today();
+        break;
+
     default:
         $controller->index();
         break;

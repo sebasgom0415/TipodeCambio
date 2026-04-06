@@ -21,8 +21,12 @@ abstract class Model
     {
         $context = stream_context_create([
             'http' => [
-                'timeout' => 15,
-                'header'  => 'Accept: application/json',
+                'timeout' => 30,
+                'header'  => implode("\r\n", [
+                    'Accept: application/json',
+                    'Authorization: Bearer ' . API_TOKEN,
+                    'User-Agent: Mozilla/5.0',
+                ]),
             ],
         ]);
 
@@ -38,8 +42,12 @@ abstract class Model
             throw new RuntimeException('Respuesta inválida de la API: ' . json_last_error_msg());
         }
 
-        if (isset($data['code']) && $data['code'] >= 400) {
-            throw new RuntimeException("Error de la API ({$data['code']}): " . ($data['status'] ?? 'desconocido'));
+        if (isset($data['statusCode']) && $data['statusCode'] >= 400) {
+            throw new RuntimeException("Error de la API ({$data['statusCode']}): " . ($data['message'] ?? 'desconocido'));
+        }
+
+        if (isset($data['estado']) && $data['estado'] === false) {
+            throw new RuntimeException('Error de la API: ' . ($data['mensaje'] ?? 'desconocido'));
         }
 
         return $data;

@@ -42,6 +42,28 @@ class TipoCambioController extends Controller
     }
 
     /**
+     * GET /today
+     * Consulta el tipo de cambio de hoy en la API del BCCR, lo guarda y lo devuelve.
+     * Se llama automáticamente al cargar la página.
+     */
+    public function today(): void
+    {
+        try {
+            $registro = $this->model->fetchToday();
+
+            if ($registro) {
+                $this->json(['success' => true, 'data' => $registro]);
+            } else {
+                // El BCCR no publica dato los fines de semana y feriados; devolver el último disponible
+                $ultimo = $this->model->getLatest();
+                $this->json(['success' => true, 'data' => $ultimo, 'aviso' => 'Sin dato para hoy. Mostrando el último disponible.']);
+            }
+        } catch (RuntimeException $e) {
+            $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * GET /sync?year=XXXX
      * Consulta la API, guarda en la BD y devuelve los datos.
      */
@@ -64,7 +86,7 @@ class TipoCambioController extends Controller
     private function getValidYear(): int
     {
         $year = (int) ($_GET['year'] ?? date('Y'));
-        if ($year < 2020 || $year > (int) date('Y')) {
+        if ($year < 2000 || $year > (int) date('Y')) {
             $year = (int) date('Y');
         }
         return $year;

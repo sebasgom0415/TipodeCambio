@@ -303,13 +303,28 @@
 <!-- Hero header -->
 <div class="hero mb-4">
     <div class="container">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <h1 class="hero-title">
                     <i class="bi bi-currency-dollar me-1"></i>
                     Tipo de Cambio &nbsp;·&nbsp; Dólar
                 </h1>
                 <p class="hero-subtitle mb-0" id="subtitulo">Cargando datos...</p>
+            </div>
+            <!-- Tipo de cambio de hoy -->
+            <div id="hoy-box" class="d-flex align-items-center gap-3 flex-wrap" style="opacity:0;transition:opacity .4s">
+                <div style="text-align:right">
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.6px;font-weight:600">Hoy · <span id="hoy-fecha">—</span></div>
+                    <div class="d-flex gap-2 mt-1">
+                        <span style="background:rgba(5,150,105,.25);border:1px solid rgba(5,150,105,.5);color:#6ee7b7;border-radius:8px;padding:4px 14px;font-size:.95rem;font-weight:700">
+                            <i class="bi bi-arrow-down me-1"></i>Compra: <span id="hoy-compra">—</span>
+                        </span>
+                        <span style="background:rgba(225,29,72,.22);border:1px solid rgba(225,29,72,.45);color:#fca5a5;border-radius:8px;padding:4px 14px;font-size:.95rem;font-weight:700">
+                            <i class="bi bi-arrow-up me-1"></i>Venta: <span id="hoy-venta">—</span>
+                        </span>
+                    </div>
+                    <div id="hoy-aviso" style="font-size:.68rem;color:rgba(255,255,255,.5);margin-top:3px"></div>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <select id="select-ver-anio" class="ctrl-select"></select>
@@ -429,7 +444,7 @@
                 <select id="select-sync-anio" class="modal-ctrl-select"></select>
                 <p class="mt-3 mb-0" style="font-size:.8rem;color:var(--muted)">
                     <i class="bi bi-info-circle me-1"></i>
-                    Se consultará la API de Hacienda y se guardarán los registros en la base de datos.
+                    Se consultará la API del BCCR y se guardarán los registros en la base de datos.
                 </p>
             </div>
             <div class="modal-footer px-4 pb-4 pt-3 gap-2">
@@ -455,7 +470,7 @@
 <script>
 $(function () {
 
-    const ANIO_MIN     = 2020;
+    const ANIO_MIN     = 2000;
     const ANIO_MAX     = new Date().getFullYear();
     let anioActivo     = ANIO_MAX - 1;
     let grafico        = null;
@@ -474,6 +489,9 @@ $(function () {
 
     llenarSelectAnio($('#select-ver-anio'), anioActivo);
     llenarSelectAnio($('#select-sync-anio'), anioActivo);
+
+    // ── Consulta automática del tipo de cambio de HOY ───────────────────────
+    sincronizarHoy();
 
     cargarDatos(anioActivo);
 
@@ -792,6 +810,29 @@ $(function () {
 
     function formatFecha(fechaStr) {
         return fechaStr.substring(0, 10);
+    }
+
+    // ── Sincronización automática diaria ────────────────────────────────────
+    function sincronizarHoy() {
+        $.ajax({
+            url: 'index.php?action=today',
+            method: 'GET',
+            dataType: 'json',
+            success: function (res) {
+                if (!res.success || !res.data) return;
+                const d = res.data;
+                $('#hoy-fecha').text(formatFecha(d.fecha));
+                $('#hoy-compra').text('₡ ' + parseFloat(d.compra).toFixed(2));
+                $('#hoy-venta').text('₡ '  + parseFloat(d.venta).toFixed(2));
+                if (res.aviso) $('#hoy-aviso').text('⚠ ' + res.aviso);
+                $('#hoy-box').css('opacity', '1');
+
+                // Si el año activo es el año actual, refrescar la tabla con el nuevo dato
+                if (anioActivo === ANIO_MAX) {
+                    cargarDatos(ANIO_MAX);
+                }
+            }
+        });
     }
 
 });
